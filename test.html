@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Porter's Parse Todo App</title>
+	<link href="bootstrap/css/bootstrap.min.css" rel="stylesheet"></script>
+	<script src="js/jquery.1.8.3.min.js"></script>
+	<script src="js/holder.js"></script>
+	<script src="bootstrap/js/bootstrap.js"></script>
+	<script src="js/underscore-1.4.3.min.js"></script>
+	<script src="js/parse-1.0.0.min.js"></script>
+	<!--<script src="http://www.parsecdn.com/js/parse-1.0.0.min.js"></script>-->
+
+</head>
+<body>
+	<div style="padding:20px;" id="appView" class="hero-unit"></div>
+	<script type="text/template" id="login_template">
+		<h1><%= welcome_message %></h1>
+		<% if (Parse.User.current()) { %>
+			<em>You are <%= Parse.User.current().get("username") %></em>
+		<% } %>
+		<form class="login-form">
+			<h2>Log In</h2>
+			<div class="alert alert-error" style="display:none"></div>
+			<input type="text" id="login-username" placeholder="Email Address" />
+			<input type="password" id="login-password" placeholder="Password" />
+			<button class="btn">Log In</button>
+			<a class="toggle_forms" href="#">Click to sign up</a>
+		</form>
+		<form class="signup-form" style="display:none;">
+			<h2>Sign Up</h2>
+			<div class="alert alert-error" style="display:none"></div>
+			<input type="text" id="signup-username" placeholder="Email Address" />
+			<input type="password" id="signup-password" placeholder="Create a Password" />
+			<button class="btn">Sign Up</button>
+			<a class="toggle_forms" href="#">Click to log in</a>
+		</form>
+	</script>
+	<script type="text/template" id="task_template">
+		<h1>Add a Task</h1>
+		<div class="alert alert-success"><%= welcomeMsg %></div>
+		<form class="add-task">
+			<textarea id="new_task_body"></textarea>
+			<button class="btn">Add Task</button>
+		</form>
+		<a href="#" class="log-out">Log Out</a>
+	</script>
+	<script>
+		// Initialize Parse with your Parse application javascript keys
+		Parse.initialize("xhJ558jmc2ZStWFnnfjCVReHbY207Mdqpu6EwU7n", "eVSHBb6gvDJL8rcAg3FvCSbMQZisBOu2V5d57uY9");
+
+		Parse.$ = jQuery;
+
+	  	// var TaskModel = Parse.Object.extend("Task", {
+	  	// 	defaults: {
+		  //     body: "empty task...",
+		  //     done: false,
+		  //     tags: {},
+
+		  //   }
+	  	// });
+	  	var TaskView = Parse.View.extend({
+	  		initialize: function(){
+		    	_.bindAll(this,'render', 'logOut');
+	            this.render();
+	        },
+	        el: $('#appView'),
+		    render: function() {
+		    	var welcomeMsg = (this.options.welcomeMsg)? this.options.welcomeMsg:"Add a task, yo!";
+	            // Compile the template using underscore
+	            var template = _.template( $('#task_template').html(), {welcomeMsg:welcomeMsg} );
+	            // Load the compiled HTML into the Backbone "el"
+	            this.$el.html( template );
+		    },
+		    events: {
+		    	"submit form.add-task": "addTask",
+		    	"click a.log-out" : "logOut"
+		    },
+		    addTask: function() {
+		    	// this.todos.create({
+			    //     body: this.input.val(),
+			    //     order:   this.todos.nextOrder(),
+			    //     done:    false,
+			    //     user:    Parse.User.current(),
+			    //     ACL:     new Parse.ACL(Parse.User.current())
+			    //   });
+		    },
+		    logOut: function(e) {
+		      Parse.User.logOut();
+		      new LoginOrSignUp( {variables: { welcome_message:"Ok, you just logged out." }});
+		      this.undelegateEvents();
+		      delete this;
+		    }
+	  	});
+
+	  	var LoginOrSignUp = Parse.View.extend({
+	  		defaults: { welcome_message:"Welcome to Default Login / Signup form" },
+		    initialize: function(){
+		    	_.bindAll(this,'render', 'toggle_forms');
+	            this.render();
+	        },
+		    events: {
+		    	"click a.toggle_forms":"toggle_forms",
+		    	"submit form.login-form": "logIn",
+      			"submit form.signup-form": "signUp"
+		    },
+		    el: $('#appView'),
+		    render: function() {
+		    	var variables = (this.options.variables)? this.options.variables:this.defaults;
+		    	console.log( variables);
+	            // Compile the template using underscore
+	            var template = _.template( $('#login_template').html(), variables );
+	            // Load the compiled HTML into the Backbone "el"
+	            this.$el.html( template );
+		    },
+		    toggle_forms: function(e) {
+		    	e.preventDefault();
+		    	this.$el.find('form').toggle();
+		    },
+		    logIn: function(e) {
+		      var self = this;
+		      var username = this.$("#login-username").val();
+		      var password = this.$("#login-password").val();
+		      
+		      Parse.User.logIn(username, password, {
+		        success: function(user) {
+		          // new ManageTodosView();
+		          // alert('logged in!!!!!');
+		          new TaskView({ welcomeMsg:"You have logged in"});
+		          self.undelegateEvents();
+		          delete self;
+		        },
+
+		        error: function(user, error) {
+		          self.$(".login-form .alert-error").html("Invalid username or password. Please try again.").show();
+		          this.$(".login-form button").removeAttr("disabled");
+		        }
+		      });
+
+		      this.$(".login-form button").attr("disabled", "disabled");
+
+		      return false;
+		    },
+
+		    signUp: function(e) {
+		      var self = this;
+		      var username = email = this.$("#signup-username").val();
+		      var password = this.$("#signup-password").val();
+		      
+		      Parse.User.signUp(username, password, { ACL: new Parse.ACL(), email:email }, {
+		        success: function(user) {
+		          // new ManageTodosView();
+		          // alert('sign up worked');
+		          new TaskView({ welcomeMsg:"You have signed up.  Welcome!"});
+		          self.undelegateEvents();
+		          delete self;
+		        },
+
+		        error: function(user, error) {
+		          self.$(".signup-form .alert-error").html(error.message).show();
+		          this.$(".signup-form button").removeAttr("disabled");
+		        }
+		      });
+
+		      this.$(".signup-form button").attr("disabled", "disabled");
+
+		      return false;
+		    },
+		});
+
+	  if (Parse.User.current()) {
+        new TaskView();
+      } else {
+        new LoginOrSignUp( {variables: { welcome_message:"(custom welcome message)" }});
+      }
+	</script>
+
+</body>
+</html>
