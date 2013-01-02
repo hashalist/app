@@ -51,20 +51,20 @@
 
 		Parse.$ = jQuery;
 
-	  	// var TaskModel = Parse.Object.extend("Task", {
-	  	// 	defaults: {
-		  //     body: "empty task...",
-		  //     done: false,
-		  //     tags: {},
-
-		  //   }
-	  	// });
+	  	var Task = Parse.Object.extend("Task", {
+	  		defaults: {
+		      body: "empty task...",
+		      done: false,
+		      due: ""
+		    }
+	  	});
 	  	var TaskView = Parse.View.extend({
 	  		initialize: function(){
-		    	_.bindAll(this,'render', 'logOut');
+		    	_.bindAll(this,'render', 'logOut', 'addTask');
 	            this.render();
 	        },
 	        el: $('#appView'),
+	        model:Task,
 		    render: function() {
 		    	var welcomeMsg = (this.options.welcomeMsg)? this.options.welcomeMsg:"Add a task, yo!";
 	            // Compile the template using underscore
@@ -76,7 +76,29 @@
 		    	"submit form.add-task": "addTask",
 		    	"click a.log-out" : "logOut"
 		    },
-		    addTask: function() {
+		    addTask: function(e) {
+		    	e.preventDefault();
+
+		    	var newTask = new Task();
+				newTask.set("body", this.$el.find('#new_task_body').val());
+				newTask.set("tags", ["work", "life"] );
+				newTask.set("user", Parse.User.current() );
+				newTask.set("ACL", new Parse.ACL(Parse.User.current()) );
+
+				var self=this;
+				newTask.save(null, {
+				  success: function(newTask) {
+				    // The object was saved successfully.
+				    console.log(this);
+				    self.$el.find('.alert').removeClass().addClass('alert alert-success').text("Nice!!  This has been added!");
+				    self.$el.find('textarea').val('');
+				  },
+				  error: function(newTask, error) {
+				    // The save failed.
+				    // error is a Parse.Error with an error code and description.
+				    self.$el.find('.alert').removeClass().addClass('alert alert-error').text("No workie, yo.");
+				  }
+				});
 		    	// this.todos.create({
 			    //     body: this.input.val(),
 			    //     order:   this.todos.nextOrder(),
